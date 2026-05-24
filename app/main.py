@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# app/main.py (Standard fallback)
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 api_key_scheme = APIKeyHeader(name="Authorization", auto_error=False)
 
@@ -105,18 +105,27 @@ def logout(current_user: models.User = Depends(get_current_user), db: Session = 
 
 
 @app.get("/users/profile", response_model=schemas.UserProfileResponse)
-def get_user_profile(username: Optional[str] = None, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_user_profile(
+    user_id: Optional[int] = None, 
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
     target_user = current_user
-    if username:
-        target_user = db.query(models.User).filter(models.User.username == username).first()
+    
+    if user_id is not None:
+        target_user = db.query(models.User).filter(models.User.id == user_id).first()
         if not target_user:
-            raise HTTPException(status_code=404, detail="Requested user profile cannot be located.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Requested user profile cannot be located."
+            )
 
     total_pushups = db.query(func.sum(models.Workout.total_pushups)).filter(models.Workout.user_id == target_user.id).scalar() or 0
     best_single_workout = db.query(func.max(models.Workout.total_pushups)).filter(models.Workout.user_id == target_user.id).scalar() or 0
     total_likes_received = db.query(func.count(models.workout_likes.c.user_id)).join(models.Workout).filter(models.Workout.user_id == target_user.id).scalar() or 0
 
     return schemas.UserProfileResponse(
+        id=target_user.id,
         username=target_user.username,
         profile_image_url=target_user.profile_image_url,
         current_streak=target_user.current_streak,
@@ -127,6 +136,59 @@ def get_user_profile(username: Optional[str] = None, current_user: models.User =
         following_count=len(target_user.following)
     )
 
+@app.get("/search", response_model=list[schemas.UserResponse])
+def search_users(
+    q: str, 
+    limit: int = 10, 
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    if not q.strip():
+        return []
+        
+    search_query = f"%{q.strip()}%"
+    results = db.query(models.User).filter(models.User.username.ilike(search_query)).limit(limit).all()
+    
+    return results
+
+@app.get("/users/followers", response_model=list[schemas.UserResponse])
+def get_followers_list(
+    user_id: Optional[int] = None, 
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+
+    if user_id is None:
+        return current_user.followers
+
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Athlete not found"
+        )
+        
+    return target_user.followers
+
+
+@app.get("/users/following", response_model=list[schemas.UserResponse])
+def get_following_list(
+    user_id: Optional[int] = None, 
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    
+    if user_id is None:
+        return current_user.following
+
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Athlete not found"
+        )
+        
+    return target_user.following
 
 @app.post("/social/follow/{target_id}")
 def toggle_follow(target_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):

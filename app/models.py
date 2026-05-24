@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
 
-# Association Table for Following Network (Many-to-Many via unique ID)
+
 followers = Table(
     "followers",
     Base.metadata,
@@ -11,7 +11,7 @@ followers = Table(
     Column("followed_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
 )
 
-# Association Table for Workout Likes (Many-to-Many via unique ID)
+
 workout_likes = Table(
     "workout_likes",
     Base.metadata,
@@ -23,13 +23,13 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False) # Enforces unique names
+    username = Column(String, unique=True, index=True, nullable=False) 
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     profile_image_url = Column(String, nullable=True)
     current_streak = Column(Integer, default=0, nullable=False)
     last_workout_date = Column(DateTime(timezone = True), nullable=True)
-    session_token = Column(String, nullable=True, unique=True) # Secure auth session tracking
+    session_token = Column(String, nullable=True, unique=True) 
 
     workouts = relationship("Workout", back_populates="owner", cascade="all, delete-orphan")
     

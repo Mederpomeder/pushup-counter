@@ -29,14 +29,15 @@ class WorkoutResponse(BaseModel):
     user_id: int
     total_pushups: int
     duration_seconds: int
-    likes_count: int  # Added: Track like metrics on individual workout views
+    likes_count: int  
     created_at: datetime
 
     class Config:
         from_attributes = True
 
-# New: Comprehensive data payload to fuel your entire profile UI screen
+
 class UserProfileResponse(BaseModel):
+    id: int
     username: str
     profile_image_url: Optional[str] = None
     current_streak: int
